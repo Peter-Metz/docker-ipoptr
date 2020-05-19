@@ -1,43 +1,49 @@
-FROM rocker/rstudio
+FROM rocker/rstudio:4.0.0
+FROM rocker/tidyverse
 
-MAINTAINER Rodrigo Martell <rodrigo.martell@gmail.com>
+MAINTAINER Peter Metz <pmetzdc@gmail.com>
+
+WORKDIR /ipopt_df
+
+COPY ./r_scripts /ipopt_df/r_scripts
 
 # IPoptr envrionment directory
-ENV IPOPTR_DIR=/CoinIpopt/build/Ipopt/contrib
+ENV IPOPTR_DIR=/ipopt_df/CoinIpopt/build/Ipopt/contrib
 
-# Give the user root access, go on!
+# Give the user root access
 RUN echo "$USER ALL = NOPASSWD: ALL" >> /etc/sudoers && \
+
+    apt-get update && apt-get install -y \
+        gcc g++ gfortran git patch wget pkg-config liblapack-dev libmetis-dev && \
 
 ##################
 # Download ipoptr source
-# See these nasty files: 
 # http://www.coin-or.org/Ipopt/documentation/node10.html
 ##################
-    wget http://www.coin-or.org/download/source/Ipopt/Ipopt-3.12.3.tgz && \
-    gunzip Ipopt-3.12.3.tgz && \
-    tar -xvf Ipopt-3.12.3.tar && \
-    rm -rf Ipopt-3.12.3.tar && \
-    mv Ipopt-3.12.3 CoinIpopt && \
-    cd CoinIpopt && \
+    cd /ipopt_df && \
+    wget http://www.coin-or.org/download/source/Ipopt/Ipopt-3.12.13.tgz && \
+    gunzip Ipopt-3.12.13.tgz && \
+    tar -xvf Ipopt-3.12.13.tar && \
+    rm -rf Ipopt-3.12.13.tar && \
+    mv Ipopt-3.12.13 CoinIpopt
 
-# Downloading BLAS, LPACK, and ASL
+COPY ./coinhsl-2019.05.21 /ipopt_df/CoinIpopt/ThirdParty/HSL
+
+RUN cd /ipopt_df/CoinIpopt && \
+
+# Downloading third party solvers
     cd ThirdParty/Blas && \
         ./get.Blas && \
     cd ../Lapack && \
         ./get.Lapack && \
     cd ../ASL && \
         ./get.ASL && \
-
-# Download HSL Subroutines (need a license and academic email, seriious?!)
-# Skip for now: http://www.coin-or.org/Ipopt/documentation/node13.html#SECTION00043100000000000000
-
-# Downloading MUMPS Linear Solver
     cd ../Mumps && \
         ./get.Mumps && \
-
-# Get METIS
     cd ../Metis && \
         ./get.Metis && \
+    cd ../HSL && \
+        ./configure && \
 
 ##################
 # Compile ipoptr
@@ -45,7 +51,7 @@ RUN echo "$USER ALL = NOPASSWD: ALL" >> /etc/sudoers && \
     cd ../../ && \
     mkdir build && \
     cd build && \
-    ../configure -with-pic && \
+    ../configure -with-pic CXXFLAGS="-fopenmp" FCFLAGS="-fopenmp" CFLAGS="-fopenmp" ADD_FFLAGS=-fPIC ADD_CFLAGS=-fPIC ADD_CXXFLAGS=-fPIC && \
     make -j3 && \
     make test && \
     make install && \
@@ -53,11 +59,11 @@ RUN echo "$USER ALL = NOPASSWD: ALL" >> /etc/sudoers && \
 ##################
 # Pre-install ipoptr
 ##################
-    echo "install.packages('/CoinIpopt/build/Ipopt/contrib/RInterface', repos=NULL, type='source')" \
+    echo "install.packages('/ipopt_df/CoinIpopt/build/Ipopt/contrib/RInterface', repos=NULL, type='source')" \
     >> installIpoptrPackage.R && \
     r installIpoptrPackage.R && \
     rm installIpoptrPackage.R
 
 # Default CMD from 
 # https://github.com/rocker-org/rocker/blob/master/rstudio/Dockerfile
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

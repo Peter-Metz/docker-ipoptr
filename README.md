@@ -1,40 +1,29 @@
 # Docker-ipoptr
 
-This is a simple repo that builds on [rocker](https://github.com/rocker-org/rocker) to build and add [ipoptr](http://www.ucl.ac.uk/~uctpjyy/downloads/ipoptr.pdf). It was built for my friend Simone, hence the username and password.
+This repository builds and runs a Docker container with everything you need to run IPOPTR. In addition, the directory `r_scripts` is mounted into the container at run time. In other words, programs saved in this folder can be opened and modified in the container.
 
-Everything (R, RStudio, ipoptr) is contained in this image. In addition, the directory `my-r-code` is mounted into the container at run time, so remember to save stuff there when working in R Studio.
+To compile IPOPTR with HSL, download the HSL source code and move the unzipped folder (in my case this was called `coinhsl-2019.05.21/`) to the base of this directory. When the Docker image is built, HSL will compile.
+
+If your folder with HSL is called something different, you may need to modify the follow line in the `Dockerfile` or simply comment it out:
+
+```
+COPY ./coinhsl-2019.05.21 /ipopt_df/CoinIpopt/ThirdParty/HSL
+```  
 
 ## Requirements
 
 1. [Docker](https://docs.docker.com/installation/)
 
-1. [docker-compose](https://docs.docker.com/compose/) (optional, but handy if you can get).
-
-## Firing up (option A - no docker-compose)
+## Firing up
 
 ```
-[you@your-project]: mkdir my-r-code # place all your code here
-[you@your-project]: docker run -p 80:8787 --name="simoner" -e ROOT=TRUE -e USER=simoner -e PASSWORD=boom -v $(pwd)/my-r-code:/my-r-code -d coderigo/docker-ipoptr
+docker build -t MY_CONTAINER . # build your image
+docker run -p 80:8787 --name="SOME_NAME" -e ROOT=TRUE -e USER=peter -e PASSWORD=peter -v $(pwd)/r_scripts:/home/peter/r_scripts -d MY_CONTAINER:latest
 ```
 
-## Firing up (option B - using docker-compose)
+Note that you can pick any `--name`, `USER`, and `PASSWORD`. Make sure to swap out your `USER` in `/home/peter/r_scripts`.
 
-```
-[you@your-project]: git clone https://github.com/coderigo/docker-ipoptr.git && cd docker-ipoptr
-[you@your-project]: docker-compose build # run only once or replace "build : ." with "image : coderigo/docker-ipoptr" in docker-compose.yml
-[you@your-project]: docker-compose up
-[you@your-project]: docker-compose kill && docker-compose rm # kill and remove
-```
 
 ## Get into it
 
-Now travel to the IP address reported by `echo $DOCKERHOST` or `boot2docker ip`, log in with the username `simoner` and password `boom` and begin developing. Your scripts (which you'll version control with git, right?) within R studio will be available by setting your working directory to `setwd("/my-r-code")`, even after killing the container.
-
-## Example.
-
-Look in this directory's `my-r-code` subdirectory for a simple script to test things out.
-
-```r
-setwd("/my-r-code/")
-source("testIpoptr.R")
-```
+Now travel to the appropriate IP address in your browser (in this case, it's `http://localhost:80`) and log into R studio with the `USER` and `PASSWORD` you provided when you ran the container.
